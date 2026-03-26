@@ -3,12 +3,19 @@ package views
 templ Dashboard() {
     @Layout("Home") {
         <div>
-            <div class="flex gap-4 mb-4">   
-                <button class="btn" id="publishBtn">
-                Publish Topic
-                </button>
-                <input id="publishTopic" type="text" placeholder="Topic Name" class="input input-bordered w-full max-w-xs" />
-                <textarea id="publishMessage" class="textarea" placeholder="Topic Message"></textarea>
+            <div class="card bg-base-100 border border-base-300 shadow-sm mb-6">
+                <div class="card-body">
+                    <h3 class="card-title mb-4">Publish Message</h3>
+                    <div class="flex flex-col gap-4">
+                        <div class="flex">
+                        <input id="publishTopic" type="text" placeholder="Topic Name" class="input input-bordered w-full" />
+                        <button class="btn btn-primary" id="publishBtn">
+                            Publish
+                        </button>
+                        </div>
+                        <textarea id="publishMessage" class="textarea textarea-bordered w-full" placeholder="Message content"></textarea>
+                    </div>
+                </div>
             </div>
 
             <button class="btn" onclick="subscribe_modal.showModal()">
