@@ -3,6 +3,7 @@ module go-pub-sub
 go 1.26.1
 
 require (
+	github.com/a-h/templ v0.3.1001
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.12.0
 	github.com/gorilla/websocket v1.5.3

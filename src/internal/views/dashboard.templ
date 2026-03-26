@@ -1,0 +1,174 @@
+package views
+
+templ Dashboard() {
+    @Layout("Home") {
+        <div>
+            <div class="flex gap-4 mb-4">   
+                <button class="btn" id="publishBtn">
+                Publish Topic
+                </button>
+                <input id="publishTopic" type="text" placeholder="Topic Name" class="input input-bordered w-full max-w-xs" />
+                <textarea id="publishMessage" class="textarea" placeholder="Topic Message"></textarea>
+            </div>
+
+            <button class="btn" onclick="subscribe_modal.showModal()">
+                Subscribe to Topic
+            </button>
+
+            <div id="subscriptions" class="mt-6 grid gap-4"></div>
+            
+            <dialog id="subscribe_modal" class="modal">
+                <div class="modal-box">
+                    <h3 class="text-lg font-bold">Subscribe to Topic</h3>
+                    <p class="py-4">Enter a topic name to create a live message panel.</p>
+                    <div class="flex gap-2">
+                        <input id="subscribeTopic" type="text" placeholder="Topic Name" class="input input-bordered w-full" />
+                        <button id="addSubscriptionBtn" type="button" class="btn btn-primary">Add</button>
+                    </div>
+                    <div class="modal-action">
+                        <button onclick="subscribe_modal.close()" class="btn">Close</button>
+                    </div>
+                </div>
+                <form method="dialog" class="modal-backdrop">
+                    <button>Close</button>
+                </form>
+            </dialog>
+
+            <script>
+                const publishBtn = document.getElementById("publishBtn");
+                const addSubscriptionBtn = document.getElementById("addSubscriptionBtn");
+                const subscribeTopicInput = document.getElementById("subscribeTopic");
+                const subscriptionsContainer = document.getElementById("subscriptions");
+                const activeSubscriptions = new Map();
+
+                publishBtn.addEventListener("click", handlePublish);
+                addSubscriptionBtn.addEventListener("click", handleSubscribe);
+                subscribeTopicInput.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleSubscribe();
+                    }
+                });
+
+                async function handlePublish() {
+                    const topicInput = document.getElementById("publishTopic");
+                    const messageInput = document.getElementById("publishMessage");
+                    
+                    const topic = topicInput.value.trim();
+                    const message = messageInput.value.trim();
+
+                    if (!topic || !message) {
+                        alert("Please enter both topic and message");
+                        return;
+                    }
+
+                    const res = await fetch("/publish", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({ topic: topic, message: message })
+                    })
+                    const data = await res.json();
+                    console.log(data);
+                }
+
+                function handleSubscribe() {
+                    const topic = subscribeTopicInput.value.trim();
+                    if (!topic) {
+                        alert("Please enter a topic name");
+                        return;
+                    }
+
+                    if (activeSubscriptions.has(topic)) {
+                        alert("Already subscribed to this topic");
+                        return;
+                    }
+
+                    const card = document.createElement("section");
+                    card.className = "card bg-base-100 border border-base-300 shadow-sm";
+
+                    const cardBody = document.createElement("div");
+                    cardBody.className = "card-body";
+
+                    const header = document.createElement("div");
+                    header.className = "flex items-center justify-between gap-4";
+
+                    const title = document.createElement("h4");
+                    title.className = "card-title";
+                    title.textContent = "Topic: " + topic;
+
+                    const actions = document.createElement("div");
+                    actions.className = "flex items-center gap-2";
+
+                    const status = document.createElement("span");
+                    status.className = "badge badge-warning";
+                    status.textContent = "Connecting...";
+
+                    const removeBtn = document.createElement("button");
+                    removeBtn.type = "button";
+                    removeBtn.className = "btn btn-xs";
+                    removeBtn.textContent = "Remove";
+
+                    actions.appendChild(status);
+                    actions.appendChild(removeBtn);
+                    header.appendChild(title);
+                    header.appendChild(actions);
+
+                    const list = document.createElement("ul");
+                    list.className = "menu bg-base-200 rounded-box max-h-60 overflow-auto";
+
+                    cardBody.appendChild(header);
+                    cardBody.appendChild(list);
+                    card.appendChild(cardBody);
+                    subscriptionsContainer.appendChild(card);
+
+                    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+                    const ws = new WebSocket(protocol + "://" + window.location.host + "/subscribe/" + encodeURIComponent(topic));
+
+                    ws.onopen = () => {
+                        status.className = "badge badge-success";
+                        status.textContent = "Connected";
+                    };
+
+                    ws.onmessage = (event) => {
+                        const item = document.createElement("li");
+
+                        let payload = event.data;
+                        try {
+                            payload = JSON.parse(event.data);
+                        } catch (_) {
+                            // Keep raw payload when message is not valid JSON.
+                        }
+
+                        item.textContent = typeof payload === "string" ? payload : JSON.stringify(payload);
+                        list.appendChild(item);
+                        list.scrollTop = list.scrollHeight;
+                    };
+
+                    ws.onclose = () => {
+                        status.className = "badge badge-error";
+                        status.textContent = "Disconnected";
+                        activeSubscriptions.delete(topic);
+                    };
+
+                    ws.onerror = () => {
+                        status.className = "badge badge-error";
+                        status.textContent = "Error";
+                    };
+
+                    removeBtn.addEventListener("click", () => {
+                        ws.close();
+                        card.remove();
+                        activeSubscriptions.delete(topic);
+                    });
+
+                    activeSubscriptions.set(topic, ws);
+                    subscribe_modal.close();
+                    subscribeTopicInput.value = "";
+                }
+            </script>
+        </div>
+    }
+}
+
