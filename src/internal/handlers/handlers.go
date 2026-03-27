@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"go-pub-sub/internal/config"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -73,6 +76,11 @@ var upgrader = websocket.Upgrader{
 
 func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !authorizeSubscription(c) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			fmt.Println("Failed to set websocket upgrade: ", err)
@@ -95,6 +103,49 @@ func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 			}
 		}()
 	}
+}
+
+func authorizeSubscription(c *gin.Context) bool {
+	topic := c.Param("topic")
+
+	payload := map[string]string{
+		"topic": topic,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println("Failed to marshal auth payload:", err)
+		return false
+	}
+
+	req, err := http.NewRequest("POST", config.Cfg.AuthCallbackURL, bytes.NewBuffer(body))
+	if err != nil {
+		fmt.Println("Failed to create auth request:", err)
+		return false
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	if auth := c.GetHeader("Authorization"); auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+
+	if cookie := c.GetHeader("Cookie"); cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Failed to send auth request:", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode == http.StatusOK
 }
 
 func (h *Handler) PublishHandler(hub *Hub) gin.HandlerFunc {
