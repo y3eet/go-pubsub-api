@@ -70,7 +70,9 @@ var upgrader = websocket.Upgrader{
 
 func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !authorizeSubscription(c) {
+		topic := c.Param("topic")
+
+		if !authCallback(c, topic, "subscribe") {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			return
 		}
@@ -80,7 +82,6 @@ func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 			fmt.Println("Failed to set websocket upgrade: ", err)
 			return
 		}
-		topic := c.Param("topic")
 		subscriber := &Subscriber{conn: conn, Topic: topic}
 
 		hub.subscribe <- subscriber
@@ -99,11 +100,35 @@ func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 	}
 }
 
-func authorizeSubscription(c *gin.Context) bool {
-	topic := c.Param("topic")
+func (h *Handler) PublishHandler(hub *Hub) gin.HandlerFunc {
+	return func(c *gin.Context) {
 
+		body := struct {
+			Topic   string `json:"topic"`
+			Message any    `json:"message"`
+		}{}
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+		msgBytes, err := json.Marshal(body.Message)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to marshal message"})
+			return
+		}
+		if !authCallback(c, body.Topic, "publish") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+		hub.publish <- Publisher{Topic: body.Topic, Message: string(msgBytes)}
+		c.JSON(http.StatusOK, gin.H{"status": "Message published"})
+	}
+}
+
+func authCallback(c *gin.Context, topic string, action string) bool {
 	payload := map[string]string{
-		"topic": topic,
+		"topic":  topic,
+		"action": action,
 	}
 
 	body, err := json.Marshal(payload)
@@ -140,24 +165,4 @@ func authorizeSubscription(c *gin.Context) bool {
 	defer resp.Body.Close()
 
 	return resp.StatusCode == http.StatusOK
-}
-
-func (h *Handler) PublishHandler(hub *Hub) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		body := struct {
-			Topic   string `json:"topic"`
-			Message any    `json:"message"`
-		}{}
-		if err := c.BindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-			return
-		}
-		msgBytes, err := json.Marshal(body.Message)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to marshal message"})
-			return
-		}
-		hub.publish <- Publisher{Topic: body.Topic, Message: string(msgBytes)}
-		c.JSON(http.StatusOK, gin.H{"status": "Message published"})
-	}
 }
