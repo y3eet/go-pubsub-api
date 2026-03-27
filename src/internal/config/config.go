@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -13,6 +14,7 @@ type Config struct {
 	AppEnv            string
 	GoPubSubMasterKey string
 	AuthCallbackURL   string
+	AllowedOrigins    []string
 }
 
 var Cfg *Config
@@ -31,6 +33,7 @@ func Load() *Config {
 		AppEnv:            getEnv("APP_ENV", "local"),
 		GoPubSubMasterKey: getEnv("GO_PUB_SUB_MASTER_KEY", "defaultmasterkey"),
 		AuthCallbackURL:   getEnv("AUTH_CALLBACK_URL", "http://localhost:8080/auth/callback"),
+		AllowedOrigins:    getEnvArray("ALLOWED_ORIGINS"),
 	}
 	return Cfg
 }
@@ -40,4 +43,23 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func getEnvArray(key string) []string {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(raw, ",")
+	result := make([]string, 0, len(parts))
+
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+
+	return result
 }

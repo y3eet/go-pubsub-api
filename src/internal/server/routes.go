@@ -1,6 +1,7 @@
 package server
 
 import (
+	"go-pub-sub/internal/config"
 	"go-pub-sub/internal/handlers"
 	"net/http"
 
@@ -16,7 +17,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	go hub.Run()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"}, // Add your frontend URL
+		AllowOrigins:     config.Cfg.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true, // Enable cookies/auth
