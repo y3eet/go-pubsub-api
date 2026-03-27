@@ -125,7 +125,7 @@ func authorizeSubscription(c *gin.Context) bool {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-
+	req.Header.Set("X-Go-Pub-Sub-Key", config.Cfg.GoPubSubMasterKey)
 	if auth := c.GetHeader("Authorization"); auth != "" {
 		req.Header.Set("Authorization", auth)
 	}
