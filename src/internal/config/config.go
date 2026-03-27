@@ -8,10 +8,11 @@ import (
 )
 
 type Config struct {
-	Port            string
-	JWTSecret       string
-	AppEnv          string
-	AuthCallbackURL string
+	Port              string
+	JWTSecret         string
+	AppEnv            string
+	GoPubSubMasterKey string
+	AuthCallbackURL   string
 }
 
 var Cfg *Config
@@ -25,10 +26,11 @@ func Load() *Config {
 	}
 
 	Cfg = &Config{
-		Port:            getEnv("PORT", "8080"),
-		JWTSecret:       getEnv("JWT_SECRET_KEY", "defaultsecret"),
-		AppEnv:          getEnv("APP_ENV", "local"),
-		AuthCallbackURL: getEnv("AUTH_CALLBACK_URL", "http://localhost:8080/auth/callback"),
+		Port:              getEnv("PORT", "8080"),
+		JWTSecret:         getEnv("JWT_SECRET_KEY", "defaultsecret"),
+		AppEnv:            getEnv("APP_ENV", "local"),
+		GoPubSubMasterKey: getEnv("GO_PUB_SUB_MASTER_KEY", "defaultmasterkey"),
+		AuthCallbackURL:   getEnv("AUTH_CALLBACK_URL", "http://localhost:8080/auth/callback"),
 	}
 	return Cfg
 }
