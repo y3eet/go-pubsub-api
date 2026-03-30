@@ -2,7 +2,7 @@
 package handlers
 
 import (
-	"go-pub-sub/internal/views"
+	"go-pubsub-api/internal/views"
 	"net/http"
 
 	"github.com/a-h/templ"

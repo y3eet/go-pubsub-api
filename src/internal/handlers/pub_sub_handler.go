@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go-pub-sub/internal/config"
+	"go-pubsub-api/internal/config"
 	"net/http"
 	"time"
 

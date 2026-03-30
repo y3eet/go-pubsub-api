@@ -3,8 +3,8 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"go-pub-sub/internal/config"
-	"go-pub-sub/internal/handlers"
+	"go-pubsub-api/internal/config"
+	"go-pubsub-api/internal/handlers"
 	"io"
 	"net/http"
 	"net/http/httptest"

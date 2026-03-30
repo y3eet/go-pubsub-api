@@ -1,8 +1,8 @@
 package server
 
 import (
-	"go-pub-sub/internal/config"
-	"go-pub-sub/internal/handlers"
+	"go-pubsub-api/internal/config"
+	"go-pubsub-api/internal/handlers"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
