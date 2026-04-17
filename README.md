@@ -2,6 +2,7 @@
 
 ```bash
 cd src &&
+cp .env.example .env &&
 go mod tidy &&
 make watch
 ```
