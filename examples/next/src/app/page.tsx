@@ -1,16 +1,13 @@
 "use client";
 
-import { GoPubSubClient } from "@/lib/pubsub/client";
-import { useEffect, useMemo, useState } from "react";
+import { pubsub } from "@/lib/pubsub";
+import { useEffect, useState } from "react";
 
 type ChatMessage = { message: string };
 
 const ROOMS = ["general", "random", "tech"] as const;
-const WS_URL = "ws://localhost:8080";
 
 export default function Home() {
-  const pubSubClient = useMemo(() => new GoPubSubClient(WS_URL), []);
-
   const [room, setRoom] = useState<string>(ROOMS[0]);
   const [messagesByRoom, setMessagesByRoom] = useState<
     Record<string, ChatMessage[]>
@@ -23,7 +20,7 @@ export default function Home() {
   );
 
   useEffect(() => {
-    const unsubscribe = pubSubClient.subscribe<ChatMessage>(
+    const unsubscribe = pubsub.subscribe<ChatMessage>(
       `chat.${room}`,
       (message) => {
         console.log("Received message:", message);
@@ -38,7 +35,7 @@ export default function Home() {
     );
 
     return unsubscribe;
-  }, [pubSubClient, room]);
+  }, [room]);
 
   const currentMessages = messagesByRoom[room] ?? [];
 
@@ -64,7 +61,50 @@ export default function Home() {
             ))}
           </div>
         </section>
+        <div>
+          <input
+            type="text"
+            id="message-input"
+            placeholder={`Message #${room}...`}
+            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 focus:border-zinc-500 focus:outline-none"
+            onKeyDown={async (e) => {
+              if (e.key === "Enter") {
+                const target = e.target as HTMLInputElement;
+                const message = target.value.trim();
+                if (message) {
+                  try {
+                    await pubsub.publish(`chat.${room}`, { message });
+                    target.value = "";
+                  } catch (error) {
+                    console.error("Failed to publish message:", error);
+                  }
+                }
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={async () => {
+              const input = document.getElementById(
+                "message-input",
+              ) as HTMLInputElement | null;
+              if (!input) return;
 
+              const message = input.value.trim();
+              if (message) {
+                try {
+                  await pubsub.publish(`chat.${room}`, { message });
+                  input.value = "";
+                } catch (error) {
+                  console.error("Failed to publish message:", error);
+                }
+              }
+            }}
+            className="mt-2 rounded-md bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
+          >
+            Send Message
+          </button>
+        </div>
         <section className="space-y-3">
           <h2 className="text-lg font-medium text-zinc-800">
             Messages in #{room}
