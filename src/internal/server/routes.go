@@ -28,10 +28,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.GET("/subscribe/:topic", handler.SubscribeHandler(hub))
 	r.POST("/auth/callback", handler.AuthCallbackHandler)
 
-	ui := r.Group("/ui")
-	{
-		ui.GET("/dashboard", handlers.DashboardHandler)
-	}
+	r.GET("/ui", handlers.DashboardHandler)
 	return r
 }
 
