@@ -1,4 +1,4 @@
-export class GoPubSubClient {
+export class GoPubSub {
   constructor(url: string) {
     this.url = url;
   }
@@ -30,13 +30,13 @@ export class GoPubSubClient {
     };
   }
 
-  async publish<T>(topic: T, message: T): Promise<void> {
-    const res = await fetch(`${this.url}/publish/${topic}`, {
+  async publish<T>(topic: string, message: T): Promise<void> {
+    const res = await fetch(`${this.url}/publish`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(message),
+      body: JSON.stringify({ topic, message }),
     });
 
     if (!res.ok) {
@@ -44,3 +44,7 @@ export class GoPubSubClient {
     }
   }
 }
+
+export const pubsub = new GoPubSub(
+  process.env.NEXT_PUBLIC_PUBSUB_URL || "http://localhost:8080",
+);
