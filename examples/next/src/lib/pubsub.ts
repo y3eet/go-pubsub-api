@@ -8,7 +8,7 @@ export class GoPubSub {
     onMessage: (message: T) => void,
     onError: (error: Event) => void,
   ): () => void {
-    const ws = new WebSocket(`${this.url}/subscribe/${topic}`);
+    let ws = new WebSocket(`${this.url}/subscribe/${topic}`);
 
     ws.onmessage = (event) => {
       onMessage(JSON.parse(event.data) as T);
@@ -19,6 +19,13 @@ export class GoPubSub {
       ws.close();
       onError(error);
     };
+
+    setInterval(() => {
+      if (ws.readyState === WebSocket.CLOSED) {
+        console.warn("WebSocket connection closed, attempting to reconnect...");
+        ws = new WebSocket(`${this.url}/subscribe/${topic}`);
+      }
+    }, 5000);
 
     return () => {
       if (
