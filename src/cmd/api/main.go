@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"go-pubsub-api/internal/config"
-	"go-pubsub-api/internal/server"
+	"pubsub/internal/config"
+	"pubsub/internal/server"
 )
 
 func gracefulShutdown(apiServer *http.Server, done chan bool) {

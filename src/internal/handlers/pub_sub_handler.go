@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go-pubsub-api/internal/config"
 	"net/http"
+	"pubsub/internal/config"
 	"time"
 
 	"github.com/gin-gonic/gin"

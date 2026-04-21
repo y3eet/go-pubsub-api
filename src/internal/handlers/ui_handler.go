@@ -2,8 +2,8 @@
 package handlers
 
 import (
-	"go-pubsub-api/internal/views"
 	"net/http"
+	"pubsub/internal/views"
 
 	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"

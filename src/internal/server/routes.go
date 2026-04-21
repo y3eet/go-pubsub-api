@@ -1,9 +1,9 @@
 package server
 
 import (
-	"go-pubsub-api/internal/config"
-	"go-pubsub-api/internal/handlers"
 	"net/http"
+	"pubsub/internal/config"
+	"pubsub/internal/handlers"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
