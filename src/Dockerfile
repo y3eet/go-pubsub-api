@@ -15,7 +15,7 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux go build \
   -trimpath \
   -ldflags="-s -w" \
-  -o /out/ar-realtime \
+  -o /out/go-pubsub-api \
   ./cmd/api
 
 
@@ -24,11 +24,11 @@ FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /
 
-COPY --from=builder /out/ar-realtime /ar-realtime
+COPY --from=builder /out/go-pubsub-api /go-pubsub-api
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 EXPOSE 8080
 
 ENV PORT=8080
 
-ENTRYPOINT ["/ar-realtime"]
+ENTRYPOINT ["/go-pubsub-api"]
