@@ -6,10 +6,10 @@ all: build test
 prepare:
 	@echo "Preparing..."
 	@go mod tidy
+	@command -v templ > /dev/null || go install github.com/a-h/templ/cmd/templ@latest
 
 build:
 	@echo "Building..."
-	
 	
 	@go build -o main cmd/api/main.go
 

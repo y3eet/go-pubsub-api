@@ -1,9 +1,10 @@
-### Start Dev Server
+### Quick Start
 
 ```bash
-cd src &&
+git clone https://github.com/y3eet/go-pubsub-api.git
+cd go-pubsub-api/src &&
 cp .env.example .env &&
-go mod tidy &&
+make prepare &&
 make watch
 ```
 
