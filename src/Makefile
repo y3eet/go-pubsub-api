@@ -5,9 +5,11 @@ all: build test
 
 build:
 	@echo "Building..."
-	
-	
 	@go build -o main cmd/api/main.go
+
+prepare:
+	@echo "Preparing..."
+	@go mod tidy
 
 # Run the application
 run:
