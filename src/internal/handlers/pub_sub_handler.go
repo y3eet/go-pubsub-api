@@ -57,7 +57,9 @@ func (h *Hub) Run() {
 					break
 				}
 			}
-			sub.conn.Close()
+			if err := sub.conn.Close(); err != nil {
+				fmt.Printf("Error closing WebSocket connection for topic %s: %v\n", sub.Topic, err)
+			}
 		}
 	}
 }
