@@ -74,8 +74,8 @@ func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		topic := c.Param("topic")
 
-		if err := authCallback(c, topic, "subscribe"); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		if status, err := authCallback(c, topic, "subscribe"); err != nil {
+			c.JSON(status, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -118,8 +118,8 @@ func (h *Handler) PublishHandler(hub *Hub) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to marshal message"})
 			return
 		}
-		if err := authCallback(c, body.Topic, "publish"); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		if status, err := authCallback(c, body.Topic, "publish"); err != nil {
+			c.JSON(status, gin.H{"error": err.Error()})
 			return
 		}
 		hub.publish <- Publisher{Topic: body.Topic, Message: string(msgBytes)}
@@ -127,7 +127,7 @@ func (h *Handler) PublishHandler(hub *Hub) gin.HandlerFunc {
 	}
 }
 
-func authCallback(c *gin.Context, topic string, action string) error {
+func authCallback(c *gin.Context, topic string, action string) (int, error) {
 	payload := map[string]string{
 		"topic":  topic,
 		"action": action,
@@ -136,13 +136,13 @@ func authCallback(c *gin.Context, topic string, action string) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		fmt.Println("Failed to marshal auth payload:", err)
-		return err
+		return http.StatusForbidden, err
 	}
 
 	req, err := http.NewRequest("POST", config.Cfg.AuthCallbackURL, bytes.NewBuffer(body))
 	if err != nil {
 		fmt.Println("Failed to create auth request:", err)
-		return err
+		return req.Response.StatusCode, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -162,13 +162,13 @@ func authCallback(c *gin.Context, topic string, action string) error {
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Failed to send auth request:", err)
-		return err
+		return resp.StatusCode, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("auth request failed with status: %d", resp.StatusCode)
+		return resp.StatusCode, fmt.Errorf("auth request failed with status: %d", resp.StatusCode)
 	}
 
-	return nil
+	return http.StatusOK, nil
 }
