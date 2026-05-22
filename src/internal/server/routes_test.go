@@ -165,3 +165,91 @@ func TestPublishDeliveredToSubscriber(t *testing.T) {
 		t.Fatalf("unexpected websocket payload: got %s want %s", string(msg), expected)
 	}
 }
+
+func TestPublishAuthSuccess(t *testing.T) {
+	handler := handlers.NewHandler()
+	hub := handlers.NewHub()
+	go hub.Run()
+	r := gin.New()
+
+	r.POST("/publish", handler.PublishHandler(hub))
+	r.POST("/auth/callback", func(c *gin.Context) {
+		t.Log("Mock endpoint called")
+		c.JSON(http.StatusOK, gin.H{"status": "Authentication successful"})
+	})
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	config.Cfg = &config.Config{
+		AuthCallbackURL:   ts.URL + "/auth/callback",
+		GoPubSubMasterKey: "test-master-key",
+	}
+
+	reqBody := struct {
+		Topic   string `json:"topic"`
+		Message string `json:"message"`
+	}{
+		Topic:   "test",
+		Message: "test",
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := http.NewRequest("POST", "/publish", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+}
+
+func TestPublishAuthFail(t *testing.T) {
+	handler := handlers.NewHandler()
+	hub := handlers.NewHub()
+	go hub.Run()
+	r := gin.New()
+
+	r.POST("/publish", handler.PublishHandler(hub))
+	r.POST("/auth/callback", func(c *gin.Context) {
+		t.Log("Mock endpoint called")
+		c.JSON(http.StatusForbidden, gin.H{"status": "Authentication failed"})
+	})
+
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	config.Cfg = &config.Config{
+		AuthCallbackURL:   ts.URL + "/auth/callback",
+		GoPubSubMasterKey: "test-master-key",
+	}
+
+	reqBody := struct {
+		Topic   string `json:"topic"`
+		Message string `json:"message"`
+	}{
+		Topic:   "test",
+		Message: "test",
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := http.NewRequest("POST", "/publish", bytes.NewBuffer(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusForbidden {
+		t.Errorf("Handler returned wrong status code: got %v want %v", status, http.StatusForbidden)
+	}
+}
