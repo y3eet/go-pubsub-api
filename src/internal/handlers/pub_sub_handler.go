@@ -20,10 +20,11 @@ type Publisher struct {
 type Subscriber struct {
 	conn  *websocket.Conn
 	Topic string
+	send  chan []byte
 }
 
 type Hub struct {
-	subscribers map[string][]*Subscriber
+	subscribers map[string]map[*Subscriber]struct{}
 	publish     chan Publisher
 	subscribe   chan *Subscriber
 	unsubscribe chan *Subscriber
@@ -31,7 +32,7 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		subscribers: make(map[string][]*Subscriber),
+		subscribers: make(map[string]map[*Subscriber]struct{}),
 		publish:     make(chan Publisher),
 		subscribe:   make(chan *Subscriber),
 		unsubscribe: make(chan *Subscriber),
@@ -42,20 +43,26 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case pub := <-h.publish:
-			for _, sub := range h.subscribers[pub.Topic] {
-				sub.conn.WriteMessage(websocket.TextMessage, fmt.Appendf(nil, "%v", pub.Message))
+			msg := fmt.Appendf(nil, "%v", pub.Message)
+			for sub := range h.subscribers[pub.Topic] {
+				select {
+				case sub.send <- msg:
+				default:
+					close(sub.send)
+					delete(h.subscribers[pub.Topic], sub)
+				}
 			}
 		case sub := <-h.subscribe:
-			h.subscribers[sub.Topic] = append(h.subscribers[sub.Topic], sub)
+			if h.subscribers[sub.Topic] == nil {
+				h.subscribers[sub.Topic] = make(map[*Subscriber]struct{})
+			}
+			h.subscribers[sub.Topic][sub] = struct{}{}
 
 		case sub := <-h.unsubscribe:
 			fmt.Printf("Unsubscribing from topic: %s\n", sub.Topic)
-			subs := h.subscribers[sub.Topic]
-			for i, s := range subs {
-				if s == sub {
-					h.subscribers[sub.Topic] = append(subs[:i], subs[i+1:]...)
-					break
-				}
+			delete(h.subscribers[sub.Topic], sub)
+			if len(h.subscribers[sub.Topic]) == 0 {
+				delete(h.subscribers, sub.Topic) // optional cleanup
 			}
 			if err := sub.conn.Close(); err != nil {
 				fmt.Printf("Error closing WebSocket connection for topic %s: %v\n", sub.Topic, err)
@@ -84,7 +91,8 @@ func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 			fmt.Println("Failed to set websocket upgrade: ", err)
 			return
 		}
-		subscriber := &Subscriber{conn: conn, Topic: topic}
+		subscriber := &Subscriber{conn: conn, Topic: topic, send: make(chan []byte, 16)}
+		go subscriber.writePump()
 
 		hub.subscribe <- subscriber
 		// Keep connection alive until client disconnects
@@ -171,4 +179,16 @@ func authCallback(c *gin.Context, topic string, action string) (int, error) {
 	}
 
 	return http.StatusOK, nil
+}
+
+func (s *Subscriber) writePump() {
+	defer s.conn.Close()
+	for msg := range s.send {
+		s.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		if err := s.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			return
+		}
+	}
+	// channel was closed (e.g. by hub eviction) — send a close frame
+	s.conn.WriteMessage(websocket.CloseMessage, []byte{})
 }
