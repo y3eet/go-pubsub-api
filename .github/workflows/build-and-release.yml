@@ -1,0 +1,97 @@
+name: Build and Release
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            artifact_name: go-psa-linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            artifact_name: go-psa-linux-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            artifact_name: go-psa-windows-amd64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@latest
+
+      - name: Generate
+        working-directory: src
+        run: templ generate
+
+      - name: Build
+        working-directory: src
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: make build
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp src/main.exe dist/${{ matrix.artifact_name }}
+          else
+            chmod +x src/main
+            cp src/main dist/${{ matrix.artifact_name }}
+            tar -czf dist/${{ matrix.artifact_name }}.tar.gz -C src main
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need full history to find the previous tag
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+              LOG=$(git log --no-merges --pretty=format:"- %s (%h)")
+          else
+              LOG=$(git log ${PREV_TAG}..HEAD --no-merges --pretty=format:"- %s (%h)")
+          fi
+          echo "log<<EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: go-psa ${{ github.ref_name }}
+          body: |
+            ## Changes
+            ${{ steps.changelog.outputs.log }}
+          files: dist/**/*
