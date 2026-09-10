@@ -9,9 +9,14 @@ prepare:
 	@command -v templ > /dev/null || go install github.com/a-h/templ/cmd/templ@latest
 	@templ generate
 
+BINARY_NAME=main
+ifeq ($(GOOS),windows)
+	BINARY_NAME=main.exe
+endif
+
 build:
 	@echo "Building..."
-	@go build -o main cmd/api/main.go
+	@go build -o $(BINARY_NAME) cmd/api/main.go
 
 # Run the application
 run:
