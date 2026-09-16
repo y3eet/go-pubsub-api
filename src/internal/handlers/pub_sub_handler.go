@@ -154,7 +154,7 @@ func authCallback(c *gin.Context, topic string, action string, message any) (int
 	req, err := http.NewRequest("POST", config.Cfg.AuthCallbackURL, bytes.NewBuffer(body))
 	if err != nil {
 		fmt.Println("Failed to create auth request:", err)
-		return req.Response.StatusCode, err
+		return http.StatusInternalServerError, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -174,10 +174,9 @@ func authCallback(c *gin.Context, topic string, action string, message any) (int
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Failed to send auth request:", err)
-		return resp.StatusCode, err
+		return http.StatusInternalServerError, err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return resp.StatusCode, fmt.Errorf("auth request failed with status: %d", resp.StatusCode)
 	}
