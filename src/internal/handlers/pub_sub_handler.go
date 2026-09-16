@@ -59,7 +59,9 @@ func (h *Hub) Run() {
 			h.subscribers[sub.Topic][sub] = struct{}{}
 
 		case sub := <-h.unsubscribe:
-			fmt.Printf("Unsubscribing from topic: %s\n", sub.Topic)
+			go func() {
+				fmt.Printf("Unsubscribing from topic: %s\n", sub.Topic)
+			}()
 			delete(h.subscribers[sub.Topic], sub)
 			if len(h.subscribers[sub.Topic]) == 0 {
 				delete(h.subscribers, sub.Topic) // optional cleanup
@@ -81,7 +83,7 @@ func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		topic := c.Param("topic")
 
-		if status, err := authCallback(c, topic, "subscribe"); err != nil {
+		if status, err := authCallback(c, topic, "subscribe", ""); err != nil {
 			c.JSON(status, gin.H{"error": err.Error()})
 			return
 		}
@@ -99,6 +101,7 @@ func (h *Handler) SubscribeHandler(hub *Hub) gin.HandlerFunc {
 		go func() {
 			defer func() {
 				hub.unsubscribe <- subscriber
+				authCallback(c, topic, "unsubscribe", "")
 			}()
 
 			for {
@@ -126,7 +129,7 @@ func (h *Handler) PublishHandler(hub *Hub) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to marshal message"})
 			return
 		}
-		if status, err := authCallback(c, body.Topic, "publish"); err != nil {
+		if status, err := authCallback(c, body.Topic, "publish", body.Message); err != nil {
 			c.JSON(status, gin.H{"error": err.Error()})
 			return
 		}
@@ -135,10 +138,11 @@ func (h *Handler) PublishHandler(hub *Hub) gin.HandlerFunc {
 	}
 }
 
-func authCallback(c *gin.Context, topic string, action string) (int, error) {
-	payload := map[string]string{
-		"topic":  topic,
-		"action": action,
+func authCallback(c *gin.Context, topic string, action string, message any) (int, error) {
+	payload := map[string]any{
+		"topic":   topic,
+		"action":  action,
+		"message": message,
 	}
 
 	body, err := json.Marshal(payload)
